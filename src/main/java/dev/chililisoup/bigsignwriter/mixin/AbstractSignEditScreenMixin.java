@@ -5,8 +5,10 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
 import dev.chililisoup.bigsignwriter.BigSignWriter;
+import dev.chililisoup.bigsignwriter.font.UnicodeCodePoints;
 import dev.chililisoup.bigsignwriter.gui.ClickableButtonWidget;
 import dev.chililisoup.bigsignwriter.gui.sign.FontSelectionWidget;
+import dev.chililisoup.bigsignwriter.gui.sign.PendingTextLayout;
 import dev.chililisoup.bigsignwriter.gui.sign.SymbolPickerWidget;
 import dev.chililisoup.bigsignwriter.gui.config.BigSignWriterConfigScreen;
 import dev.chililisoup.bigsignwriter.input.SignEditContext;
@@ -58,6 +60,9 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
     @Unique private @Nullable SymbolPickerWidget bigSignWriter$symbolPicker;
     @Unique private boolean bigSignWriter$inSymbolPicker = false;
     @Unique private boolean bigSignWriter$ignoreNextRemoval = false;
+    @Unique private @Nullable Button bigSignWriter$continueButton;
+    @Unique private @Nullable Button bigSignWriter$clearQueueButton;
+    @Unique private @Nullable FontSelectionWidget bigSignWriter$fontSelector;
 
     @Shadow protected @Final SignBlockEntity sign;
     @Shadow /*? if >= 26.3 {*/@Final/*?}*/ private SignText/*? if >= 26.3 {*/.Mutable/*?}*/ text;
@@ -110,8 +115,12 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
                 y,
                 20,
                 this.messages.length,
-                this.bigSignWriter$context.fontTyper::fixCursor
+                () -> {
+                    this.bigSignWriter$context.fontTyper.fixCursor();
+                    this.bigSignWriter$updatePendingButtons();
+                }
         );
+        this.bigSignWriter$fontSelector = fontSelector;
 
         ClickableButtonWidget fontSelectorToggleButton = new ClickableButtonWidget(
                 x - halfButtonsWidth + 1,
@@ -123,6 +132,7 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
         );
 
         fontSelector.setOnOpenChanged(instance -> {
+            this.bigSignWriter$updatePendingButtons();
             fontSelectorToggleButton.setMessage(bigSignWriter$getDropdownLabel(instance.isOpen()));
             if (this.bigSignWriter$doneButton != null) this.bigSignWriter$doneButton.visible =
                     !MAIN_CONFIG.fontSelectorCoversDoneButton || !instance.isOpen();
@@ -131,6 +141,21 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
         this.addWidget(fontSelectorToggleButton);
         this.addRenderableWidget(fontSelector);
         this.addRenderableOnly(fontSelectorToggleButton);
+
+        int queueWidth = Math.max(100, Math.min(buttonsWidth, this.width - 8));
+        int queueX = Math.clamp(x - queueWidth / 2, 4, this.width - queueWidth - 4);
+        this.bigSignWriter$continueButton = this.addRenderableWidget(Button.builder(
+                Component.empty(), button -> {
+                    if (this.bigSignWriter$context != null) this.bigSignWriter$context.fontTyper.continuePendingText();
+                    this.bigSignWriter$updatePendingButtons();
+                }).bounds(queueX, 0, queueWidth - 52, 20).build());
+        this.bigSignWriter$clearQueueButton = this.addRenderableWidget(Button.builder(
+                Component.translatable("bigsignwriter.input.clearQueue"), button -> {
+                    BigSignWriter.PENDING_TEXT.clear();
+                    this.bigSignWriter$updatePendingButtons();
+                }).bounds(queueX + queueWidth - 48, 0, 48, 20).build());
+        this.bigSignWriter$updatePendingButtons();
+
 
         if (MAIN_CONFIG.showConfigButton) {
             ClickableButtonWidget configButton = new ClickableButtonWidget(
@@ -160,6 +185,7 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
                     this::repositionElements,
                     visible -> {
                         this.bigSignWriter$inSymbolPicker = visible;
+                        this.bigSignWriter$updatePendingButtons();
                         if (!visible && this.bigSignWriter$context != null)
                             this.bigSignWriter$context.fontTyper.fixCursor();
 
@@ -188,6 +214,27 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
         }
     }
 
+    @Unique
+    private void bigSignWriter$updatePendingButtons() {
+        if (this.bigSignWriter$continueButton == null || this.bigSignWriter$clearQueueButton == null) return;
+        int selectorY = this.bigSignWriter$fontSelector != null ? this.bigSignWriter$fontSelector.getY() : 0;
+        int queueY = PendingTextLayout.rowY(this.height, selectorY,
+                this.bigSignWriter$doneButton != null ? this.bigSignWriter$doneButton.getY() : selectorY,
+                this.bigSignWriter$doneButton != null ? this.bigSignWriter$doneButton.getHeight() : 20);
+        this.bigSignWriter$continueButton.setY(queueY);
+        this.bigSignWriter$clearQueueButton.setY(queueY);
+        boolean visible = MAIN_CONFIG.continuousWriting && !BigSignWriter.isVanillaTyping()
+                && queueY >= 0 && !BigSignWriter.PENDING_TEXT.isEmpty() && !this.bigSignWriter$inSymbolPicker
+                && (this.bigSignWriter$fontSelector == null || !this.bigSignWriter$fontSelector.isOpen());
+        this.bigSignWriter$continueButton.visible = visible;
+        this.bigSignWriter$continueButton.active = visible && this.bigSignWriter$context != null
+                && this.bigSignWriter$context.fontTyper.canContinuePendingText();
+        this.bigSignWriter$clearQueueButton.visible = visible;
+        this.bigSignWriter$continueButton.setMessage(Component.translatable("bigsignwriter.input.continueQueue", BigSignWriter.PENDING_TEXT.size()));
+        this.bigSignWriter$continueButton.setTooltip(Tooltip.create(Component.translatable("bigsignwriter.input.pendingText",
+                BigSignWriter.PENDING_TEXT.preview(), Component.translatable("gui.done"))));
+    }
+
     @Inject(method = "charTyped", at = @At("HEAD"), cancellable = true)
     private void charTypedInject(CharacterEvent event, CallbackInfoReturnable<Boolean> cir) {
         if (this.bigSignWriter$context == null) return;
@@ -200,8 +247,8 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
         if (BigSignWriter.isVanillaTyping()) return;
         cir.setReturnValue(true);
 
-        char chr = Character.toChars(event.codepoint())[0];
-        this.bigSignWriter$context.fontTyper.charTyped(chr);
+        this.bigSignWriter$context.fontTyper.charTyped(event.codepoint());
+        this.bigSignWriter$updatePendingButtons();
     }
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
@@ -213,8 +260,10 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
             return;
         }
 
-        if (!BigSignWriter.isVanillaTyping() && this.bigSignWriter$context.fontTyper.keyPressed(event))
+        if (!BigSignWriter.isVanillaTyping() && this.bigSignWriter$context.fontTyper.keyPressed(event)) {
+            this.bigSignWriter$updatePendingButtons();
             cir.setReturnValue(true);
+        }
     }
 
     //? if >= 26.1
@@ -251,7 +300,7 @@ public abstract class AbstractSignEditScreenMixin extends Screen {
         int cursorPosition = this.font.width(
                 wideLine.substring(0, cursorPos != 0 && cursorPos == this.messages[this.line].length() ?
                         wideLine.length() :
-                        Math.min(cursorPos, wideLine.length())
+                        UnicodeCodePoints.floorBoundary(wideLine, cursorPos)
                 )
         );
         int cursorX = cursorPosition - this.font.width(wideLine) / 2;

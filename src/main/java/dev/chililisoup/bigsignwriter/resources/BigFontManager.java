@@ -43,10 +43,14 @@ public final class BigFontManager implements PreparableReloadListener {
     }
 
     public void selectFont(@Nullable FontInfo fontInfo) {
+        Identifier previousId = this.selectedFont != null ? this.selectedFont.id : null;
         this.selectedFont = (fontInfo != null
                 && this.availableFonts.contains(fontInfo)
                 && fontInfo.isVisible()
+                && fontInfo.isWorking()
         ) ? fontInfo : null;
+        Identifier nextId = this.selectedFont != null ? this.selectedFont.id : null;
+        if (!Objects.equals(previousId, nextId)) BigSignWriter.PENDING_TEXT.clear();
     }
 
     private void reselectFont(@Nullable Identifier id) {
@@ -82,10 +86,6 @@ public final class BigFontManager implements PreparableReloadListener {
     private Preparation prepare() {
         Identifier selectedFontId = this.selectedFont != null ? this.selectedFont.id : null;
 
-        this.availableFonts.clear();
-        this.availableSymbolGroups.clear();
-        this.selectedFont = null;
-
         File[] jsonFiles = BigSignWriter.getFontsDir().toFile().listFiles((dir, name) -> name.endsWith(".json"));
         if (jsonFiles == null || jsonFiles.length == 0)
             return new Preparation(selectedFontId, Map.of());
@@ -99,17 +99,18 @@ public final class BigFontManager implements PreparableReloadListener {
 
         return new Preparation(
                 selectedFontId,
-                FontInfoExtractor.prepareFonts(userFontStream.collect(
-                        Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue)
-                ))
+                userFontStream.collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue))
         );
     }
 
     private void apply(Preparation preparation) {
-        HashMap<Identifier, FontInfoExtractor.FontInfoExtraction> preparedFonts = new HashMap<>(preparation.preparedFonts);
-        preparedFonts.putAll(BigSignWriter.getBigFontResourceProvider().preparedFonts);
+        HashMap<Identifier, FontFile> sources = new HashMap<>(preparation.fontSources);
+        sources.putAll(BigSignWriter.getBigFontResourceProvider().fontSources);
 
-        this.availableFonts.addAll(FontInfoExtractor.extractAll(preparedFonts));
+        List<FontInfo> fonts = FontInfoExtractor.extractAll(FontInfoExtractor.prepareFonts(sources));
+        this.availableFonts.clear();
+        this.availableSymbolGroups.clear();
+        this.availableFonts.addAll(fonts);
         this.availableFonts.sort(BigFontManager::compareFonts);
         this.availableSymbolGroups.addAll(SymbolGroup.availableGroups());
 
@@ -139,6 +140,6 @@ public final class BigFontManager implements PreparableReloadListener {
 
     private record Preparation(
             @Nullable Identifier selectedFontSource,
-            Map<Identifier, FontInfoExtractor.FontInfoExtraction> preparedFonts
+            Map<Identifier, FontFile> fontSources
     ) {}
 }

@@ -1,6 +1,7 @@
 package dev.chililisoup.bigsignwriter.font;
 
 import dev.chililisoup.bigsignwriter.resources.BigFontManager;
+import dev.chililisoup.bigsignwriter.resources.BitmapFontLoader;
 import dev.chililisoup.bigsignwriter.BigSignWriter;
 import dev.chililisoup.bigsignwriter.config.BigSignWriterConfig;
 import dev.chililisoup.bigsignwriter.util.ModUtil;
@@ -18,7 +19,8 @@ public class FontInfo implements FamilyCharacterProvider {
     private final @Nullable FontInfo parentFont;
     private final @Nullable FontInfo rootAncestorFont;
     private final @Nullable Component error;
-    private final Set<Character> cumulativeCharacters;
+    private final Set<Integer> cumulativeCharacters;
+    private final @Nullable BitmapFontLoader.Loaded bitmapFont;
     private final String widthInfo;
     private final @Nullable String cumulativeWidthInfo;
     private final Map<String, String[]> symbols;
@@ -34,6 +36,7 @@ public class FontInfo implements FamilyCharacterProvider {
         this.rootAncestorFont = extraction.rootAncestorFont();
         this.error = extraction.error;
         this.cumulativeCharacters = extraction.cumulativeCharacters();
+        this.bitmapFont = extraction.bitmapFont;
         this.widthInfo = extraction.widthInfo;
         this.cumulativeWidthInfo = extraction.cumulativeWidthInfo;
         this.symbols = extraction.symbols();
@@ -61,12 +64,27 @@ public class FontInfo implements FamilyCharacterProvider {
     }
 
     @Override
-    public Map<Character, String[]> characters() {
+    public Map<Integer, String[]> characters() {
         return this.fontFile.getCharacters();
     }
 
-    public Set<Character> cumulativeCharacters() {
+    public Set<Integer> cumulativeCharacters() {
         return this.cumulativeCharacters;
+    }
+
+    @Override
+    public @Nullable BigGlyphProvider glyphProvider() {
+        return this.bitmapFont != null ? this.bitmapFont.provider() : null;
+    }
+
+    public int bitmapGlyphCount() {
+        return this.bitmapFont != null ? this.bitmapFont.glyphCount() :
+                (this.hasExplicitParent() ? this.parentFont.bitmapGlyphCount() : 0);
+    }
+
+    public String bitmapSample() {
+        return this.bitmapFont != null ? this.bitmapFont.sample() :
+                (this.hasExplicitParent() ? this.parentFont.bitmapSample() : "");
     }
 
     public Map<String, String[]> symbols() {
@@ -96,7 +114,7 @@ public class FontInfo implements FamilyCharacterProvider {
     }
 
     public boolean hasCharacters() {
-        return !this.cumulativeCharacters.isEmpty();
+        return !this.cumulativeCharacters.isEmpty() || this.fontFile.bitmapFont().isPresent() || this.bitmapGlyphCount() > 0;
     }
 
     public boolean hasSymbols() {
@@ -203,7 +221,7 @@ public class FontInfo implements FamilyCharacterProvider {
         ArrayList<ArrayList<String>> lines = new ArrayList<>(height);
         for (int i = 0; i < height; i++) lines.add(new ArrayList<>());
 
-        for (char chr : text.toCharArray()) {
+        for (int chr : text.codePoints().toArray()) {
             String[] bigChar = BigSignWriter.getBigChar(chr, fontInfo).orElse(new String[]{""});
             int length = Math.min(height, bigChar.length);
             for (int i = 0; i < length; i++)
@@ -236,7 +254,7 @@ public class FontInfo implements FamilyCharacterProvider {
         StringBuilder runningString = new StringBuilder();
         float runningWidth = 0F;
 
-        for (char chr : text.toCharArray()) {
+        for (int chr : text.codePoints().toArray()) {
             String top = BigSignWriter.getBigChar(chr, fontInfo).orElse(new String[]{""})[0];
 
             float chrWidth = font.width(top);
@@ -245,10 +263,10 @@ public class FontInfo implements FamilyCharacterProvider {
                     previewLines.add(fontInfo.getPreview(runningString.toString(), characterSeparator));
 
                 runningWidth = separatorWidth + chrWidth;
-                runningString = new StringBuilder(String.valueOf(chr));
+                runningString = new StringBuilder(UnicodeCodePoints.toKey(chr));
             } else {
                 runningWidth += separatorWidth + chrWidth;
-                runningString.append(chr);
+                runningString.appendCodePoint(chr);
             }
         }
 

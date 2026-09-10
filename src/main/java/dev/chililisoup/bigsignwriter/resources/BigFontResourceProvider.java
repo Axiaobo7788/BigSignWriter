@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 public class BigFontResourceProvider extends SimpleJsonResourceReloadListener<FontFile> {
     private static final FileToIdConverter ASSET_LISTER = FileToIdConverter.json("bigsignwriter");
 
-    public Map<Identifier, FontInfoExtractor.FontInfoExtraction> preparedFonts = Map.of();
+    public Map<Identifier, FontFile> fontSources = Map.of();
 
     public BigFontResourceProvider() {
         super(FontFile.CODEC, ASSET_LISTER);
@@ -27,7 +27,7 @@ public class BigFontResourceProvider extends SimpleJsonResourceReloadListener<Fo
             @NotNull ResourceManager manager,
             @NotNull ProfilerFiller profiler
     ) {
-        this.preparedFonts = FontInfoExtractor.prepareFonts(
+        this.fontSources = Map.copyOf(
                 preparations.entrySet().stream()
                         .collect(Collectors.toUnmodifiableMap(
                                 Map.Entry::getKey, Map.Entry::getValue

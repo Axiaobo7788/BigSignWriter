@@ -74,5 +74,15 @@
   "bigsignwriter.config.characterSeparatorOverride": "Character Separator Override",
   "bigsignwriter.config.characterSeparatorOverride.desc": "Overrides the separator string to place between characters. Only active when enabled. Does not save between sessions.",
   "bigsignwriter.config.characterSeparatorOverrideEnabled": "Enable Character Separator Override",
-  "bigsignwriter.config.characterSeparatorOverrideEnabled.desc": "Enables the character separator override. Does not save between sessions."
+  "bigsignwriter.config.characterSeparatorOverrideEnabled.desc": "Enables the character separator override. Does not save between sessions.",
+  "bigsignwriter.font.error.cyclicParent": "Font inheritance contains a cycle",
+  "bigsignwriter.font.error.bitmap": "Cannot load bitmap font: %s",
+  "bigsignwriter.font.info.bitmapGlyphCount": "Bitmap glyphs (on demand): %s",
+  "bigsignwriter.input.signFull": "Sign full: choose %s, then open the next sign.",
+  "bigsignwriter.input.tooLong": "The pending text limit is %s characters. Nothing was added.",
+  "bigsignwriter.input.clearQueue": "Clear",
+  "bigsignwriter.input.continueQueue": "Write pending (%s)",
+  "bigsignwriter.input.pendingText": "Pending: %s. Choose %s to save this sign, then open the next sign and click Write pending. Backspace edits pending text; Clear discards it. Changing fonts or disabling continuous writing clears the queue.",
+  "bigsignwriter.config.continuousWriting": "Continuous Writing",
+  "bigsignwriter.config.continuousWriting.desc": "Keeps text that does not fit for the next sign. Disabled by default. Missing characters are skipped. Changing fonts, disabling this option or quitting the game clears pending text."
 }

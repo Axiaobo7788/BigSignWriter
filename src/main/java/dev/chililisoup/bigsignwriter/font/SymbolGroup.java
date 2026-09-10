@@ -80,8 +80,8 @@ public record SymbolGroup(
 
     public static boolean filterFromInclude(String key) {
         if (!BigSignWriterConfig.MAIN_CONFIG.nonUSCharactersInSymbols) return true;
-        char[] chars = key.toCharArray();
-        return chars.length != 1 || String.valueOf(chars[0]).matches("[ -~]");
+        return key.codePointCount(0, key.length()) != 1
+                || (key.codePointAt(0) >= 32 && key.codePointAt(0) <= 126);
     }
 
     private Map<String, SymbolReference> expandIds(Function<String, Boolean> filter) {

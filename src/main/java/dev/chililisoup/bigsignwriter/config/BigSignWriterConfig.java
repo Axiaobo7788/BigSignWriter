@@ -39,6 +39,7 @@ public final class BigSignWriterConfig {
         public SymbolColoringMode symbolColoringMode = SymbolColoringMode.WHILE_HOLDING_SHIFT;
         public boolean rememberOpenSymbolGroup = true;
         public boolean nonUSCharactersInSymbols = true;
+        public boolean continuousWriting = false;
         public HashSet<String> hiddenFonts = new HashSet<>();
 
         static PersistentConfig initial() {
@@ -185,6 +186,7 @@ public final class BigSignWriterConfig {
         ConfigInterface<PersistentConfig> persistentConfig = getConfig();
 
         persistentConfig.save(new PersistentConfig().copyFrom(MAIN_CONFIG));
+        if (!MAIN_CONFIG.continuousWriting) BigSignWriter.PENDING_TEXT.clear();
         BigSignWriter.reselectFont();
 
         BigSignWriter.LOGGER.info(BigSignWriter.LOGGER_PREFIX + "Config saved!");
@@ -195,6 +197,7 @@ public final class BigSignWriterConfig {
 
         MAIN_CONFIG.copyFrom(persistentConfig.load());
         MAIN_CONFIG.migrateVersion();
+        if (!MAIN_CONFIG.continuousWriting) BigSignWriter.PENDING_TEXT.clear();
         persistentConfig.save(new PersistentConfig().copyFrom(MAIN_CONFIG));
 
         BigSignWriter.LOGGER.debug(BigSignWriter.LOGGER_PREFIX + "Config loaded!");

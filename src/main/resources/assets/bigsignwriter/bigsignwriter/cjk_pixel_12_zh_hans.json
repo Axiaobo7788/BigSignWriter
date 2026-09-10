@@ -1,0 +1,10 @@
+{
+  "name": "CJK Pixel 12",
+  "credits": "TakWolf and upstream pixel-font authors",
+  "license": [
+    "OFL-1.1; see META-INF/licenses/cjk-pixel-12"
+  ],
+  "height": 4,
+  "characterSeparator": " ",
+  "bitmapFont": "bigsignwriter:cjk12/zh_hans"
+}

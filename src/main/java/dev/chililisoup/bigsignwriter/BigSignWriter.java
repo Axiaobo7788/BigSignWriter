@@ -8,9 +8,11 @@ import dev.chililisoup.bigsignwriter.config.ConfigInterface;
 import dev.chililisoup.bigsignwriter.font.FamilyCharacterProvider;
 import dev.chililisoup.bigsignwriter.font.FontFile;
 import dev.chililisoup.bigsignwriter.font.FontInfo;
+import dev.chililisoup.bigsignwriter.font.GlyphLookup;
 import dev.chililisoup.bigsignwriter.font.SymbolGroup;
 import dev.chililisoup.bigsignwriter.resources.BigFontManager;
 import dev.chililisoup.bigsignwriter.resources.BigFontResourceProvider;
+import dev.chililisoup.bigsignwriter.input.PendingSignText;
 import net.minecraft.resources.Identifier;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -31,6 +33,7 @@ public final class BigSignWriter {
     public static final Identifier ICON = id("icon.png");
     public static String VERSION;
     public static Path CONFIG_DIR;
+    public static final PendingSignText PENDING_TEXT = new PendingSignText();
 
     public static Identifier id(String path) {
         return Identifier.fromNamespaceAndPath(MOD_ID, path);
@@ -98,35 +101,12 @@ public final class BigSignWriter {
         BIG_FONT_MANAGER.reselectFont();
     }
 
-    private static Optional<String[]> getBigChar(char chr, @Nullable FamilyCharacterProvider fontInfo, @Nullable String[] fallback) {
-        if (fontInfo == null)
-            return Optional.ofNullable(fallback);
-
-        if (fontInfo.characters() == null)
-            return Optional.ofNullable(fallback);
-
-        if (fontInfo.characters().containsKey(chr))
-            return Optional.of(fontInfo.characters().get(chr));
-
-        if (fallback == null) {
-            char upper = Character.toUpperCase(chr);
-            if (fontInfo.characters().containsKey(upper)) {
-                fallback = fontInfo.characters().get(upper);
-                return fontInfo.parentIsImplicit() ?
-                        Optional.of(fallback) :
-                        getBigChar(chr, fontInfo.parentFont(), fallback);
-            }
-        }
-
-        return getBigChar(chr, fontInfo.parentFont(), fallback);
+    public static Optional<String[]> getBigChar(int codePoint, @Nullable FamilyCharacterProvider fontInfo) {
+        return GlyphLookup.find(codePoint, fontInfo);
     }
 
-    public static Optional<String[]> getBigChar(char chr, @Nullable FamilyCharacterProvider fontInfo) {
-        return getBigChar(chr, fontInfo, null);
-    }
-
-    public static Optional<String[]> getBigChar(char chr) {
-        return getBigChar(chr, selectedFont());
+    public static Optional<String[]> getBigChar(int codePoint) {
+        return getBigChar(codePoint, selectedFont());
     }
 
     public static @NotNull Path getFontsDir() {
@@ -163,6 +143,7 @@ public final class BigSignWriter {
     }
 
     public static ConfigInterface<FontFile> getFontFileInterface(Gson gson, Path path) {
-        return new ConfigInterface<>(gson, new TypeToken<>() {}, path, new FontFile());
+        Gson fontGson = gson.newBuilder().registerTypeAdapter(FontFile.class, new FontFile.GsonAdapter()).create();
+        return new ConfigInterface<>(fontGson, new TypeToken<>() {}, path, new FontFile());
     }
 }

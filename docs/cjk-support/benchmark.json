@@ -1,0 +1,16 @@
+{
+  "providerConstructionMicros": 5502.728,
+  "pagesReadAtConstruction": 0,
+  "firstGlyphIncludingPageReadMicros": 21194.456,
+  "cacheHitP50Micros": 1.397,
+  "cacheHitP95Micros": 1.467,
+  "distinctLookupP50Micros": 7.613,
+  "distinctLookupP95Micros": 48.750,
+  "hits": 20000, "misses": 2001, "pageLoads": 56,
+  "cachedPages": 16, "cachedGlyphs": 512,
+  "cachedPixelAndTextPayloadBytes": 251554,
+  "totalPageReadMicros": 112046.388,
+  "totalEncodingMicros": 14965.420,
+  "limits": "16 pages / 512 glyph results",
+  "scope": "Standalone JVM; filesystem cache may be warm. Payload excludes object overhead. Not Minecraft startup time."
+}

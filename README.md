@@ -24,3 +24,18 @@ Big Sign Writer adds plenty of fonts and hundreds of symbols ready for use, easi
 The mod is highly configurable, with an in-game config screen accessible by default through the sign edit screen, or [Mod Menu](https://modrinth.com/mod/modmenu) on Fabric and NeoForge's mod list.
 
 For more information, check out the [wiki](https://codeberg.org/chililisoup/BigSignWriter/wiki)!
+
+
+## CJK / 中文大字
+
+Choose **CJK Pixel 12** in the existing sign font selector and type or paste simplified/traditional Chinese, Japanese or Korean, including mixed text, without switching fonts. The dropdown has one CJK entry, with its name drawn in that font. The OFL bitmap source uses 12-pixel glyphs with the documented correction below; the generated sign text uses vanilla Unicode blocks and needs no server mod or additional font resource pack.
+
+A Han glyph takes four lines and 60 pixels, normally **one character per sign**. Signs are edited independently by default. For whole phrases such as `你好世界`, enable **Continuous Writing / 连续写牌** in **Options**, just above the custom character separator controls, fill the first sign, choose **Done**, then open each next sign and click **Write pending / 写入待写**. The pending toolbar occupies its own row and never covers Done; Write pending is disabled when the current sign cannot fit the next glyph. Hover the button to inspect the queue. While continuous writing is enabled, Backspace edits pending text first; Clear discards it. Changing fonts, disabling the option or exiting the client clears the queue. Missing glyphs are silently skipped. Without continuous writing, no queue is created and Backspace edits the current sign.
+
+The complete mod UI follows the Minecraft language setting in English, Simplified Chinese, Traditional Chinese, Japanese and Korean; untranslated game languages fall back to English.
+
+The bundled source has broad CJK coverage, including traditional Han, Kana, Hangul and some supplementary characters, but does not contain every Unicode character. Existing ASCII fonts remain available. Keep the default Minecraft font; resource packs and Force Unicode Font can change the block geometry.
+
+Read [CJK usage, coverage and validation](docs/cjk-support/README.md) and the [manual acceptance checklist](docs/cjk-support/testing.md). Font generation is reproducible with the [CJK font tools](tools/cjk-font-generator/README.md).
+
+The bundled default CJK Pixel 12 includes a documented OFL derivative correction for 道, restoring two separated inner horizontal strokes. Existing signs must be rewritten to use the corrected shape because signs store the converted vanilla characters.
