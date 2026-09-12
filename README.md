@@ -14,7 +14,6 @@ A client-side utility mod that lets you easily add large, multi-line characters 
 <hr>
 
 > [!IMPORTANT]
-> ## Independent AI-assisted branch
 > The original author does not accept AI-assisted contributions to the upstream project, so this branch is maintained independently for the Unicode/CJK extension. The original project and its author remain available at [chililisoup/BigSignWriter on Codeberg](https://codeberg.org/chililisoup/BigSignWriter).
 
 <hr>
