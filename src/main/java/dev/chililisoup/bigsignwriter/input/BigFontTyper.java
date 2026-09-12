@@ -3,9 +3,13 @@ package dev.chililisoup.bigsignwriter.input;
 import com.google.common.collect.ImmutableMap;
 import com.ibm.icu.impl.Pair;
 import dev.chililisoup.bigsignwriter.BigSignWriter;
+import dev.chililisoup.bigsignwriter.config.BigSignWriterConfig;
 import dev.chililisoup.bigsignwriter.font.SymbolReference;
+import dev.chililisoup.bigsignwriter.font.UnicodeCodePoints;
 import dev.chililisoup.bigsignwriter.util.ModUtil;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 import net.minecraft.client.gui.font.TextFieldHelper;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.FormattedText;
@@ -91,7 +95,7 @@ public record BigFontTyper(SignEditContext context) {
     }
 
     private int getCursorPos() {
-        return Math.min(this.signField().getCursorPos(), this.getMessage().length());
+        return UnicodeCodePoints.floorBoundary(this.getMessage(), this.signField().getCursorPos());
     }
 
     private TreeMap<Integer, Integer[]> getSplitIndices(
@@ -304,8 +308,8 @@ public record BigFontTyper(SignEditContext context) {
         else this.signField().setCursorToStart();
     }
 
-    public void typeLines(String[] lines, String characterSeparator) {
-        if (lines.length == 0) return;
+    private Optional<Insertion> prepareInsertion(String[] lines, String characterSeparator) {
+        if (lines.length == 0 || lines.length > this.context.lineCount()) return Optional.empty();
 
         int cursorLine = this.getLine();
         int topLine = this.context.getClampedLine(lines.length);
@@ -322,6 +326,7 @@ public record BigFontTyper(SignEditContext context) {
         String separator = Math.max(maxWidths.first, maxWidths.second) > 0 ? characterSeparator : "";
         boolean atEnd = endLength != 0 && split[0] == endLength;
         int newCursorPos = -1;
+        String[] candidates = new String[endLine - startLine];
 
         for (int i = startLine; i < endLine; i++) {
             int splitLine = i - startLine;
@@ -339,22 +344,31 @@ public record BigFontTyper(SignEditContext context) {
             String suffixFiller = ModUtil.getGapFiller(maxWidths.second - this.font().width(suffix));
             String message = prefix + prefixFiller + addition + suffixFiller + suffix;
 
-            if (this.font().width(message) > this.context.maxLineWidth)
-                continue;
-
-            this.setLine(i);
-            this.context.setCurrentLineMessage(message);
+            candidates[splitLine] = message;
             if (i - cursorLine == 0) newCursorPos = cursorPos + prefixFiller.length() + addition.length();
         }
 
-        this.setLine(cursorLine);
-        if (newCursorPos >= 0)
-            this.signField().setCursorPos(newCursorPos, false);
-        else this.signField().setCursorPos(cursorPos, false);
+        if (!SignInsertion.fits(candidates, this.context.maxLineWidth, this.font()::width)) return Optional.empty();
+        return Optional.of(new Insertion(startLine, candidates, cursorLine, newCursorPos >= 0 ? newCursorPos : cursorPos));
     }
 
-    public void typeLines(String[] lines) {
-        this.typeLines(lines, BigSignWriter.characterSeparator());
+    private record Insertion(int startLine, String[] rows, int cursorLine, int cursorPos) {}
+
+    public boolean typeLines(String[] lines, String characterSeparator) {
+        Optional<Insertion> prepared = this.prepareInsertion(lines, characterSeparator);
+        if (prepared.isEmpty()) return false;
+        Insertion insertion = prepared.get();
+        for (int i = 0; i < insertion.rows.length; i++) {
+            this.setLine(insertion.startLine + i);
+            this.context.setCurrentLineMessage(insertion.rows[i]);
+        }
+        this.setLine(insertion.cursorLine);
+        this.signField().setCursorPos(insertion.cursorPos, false);
+        return true;
+    }
+
+    public boolean typeLines(String[] lines) {
+        return this.typeLines(lines, BigSignWriter.characterSeparator());
     }
 
     public void typeSymbol(SymbolReference symbol) {
@@ -381,12 +395,66 @@ public record BigFontTyper(SignEditContext context) {
         return false;
     }
 
-    public void charTyped(char chr) {
-        if (chr == ' ' && this.maybePadWorkingArea()) return;
-        BigSignWriter.getBigChar(chr).ifPresent(this::typeLines);
+    public void charTyped(int chr) {
+        if (!UnicodeCodePoints.isScalar(chr)) return;
+        if (chr == ' ' && (!BigSignWriterConfig.MAIN_CONFIG.continuousWriting || BigSignWriter.PENDING_TEXT.isEmpty())
+                && this.maybePadWorkingArea()) return;
+        this.typeText(UnicodeCodePoints.toKey(chr));
+    }
+
+    private static void showMessage(Component message) {
+        var player = Minecraft.getInstance().player;
+        if (player == null) return;
+        //? if >= 26.1 {
+        player.sendOverlayMessage(message);
+        //?} else {
+        /*player.displayClientMessage(message, true);
+        *///?}
+    }
+
+    private boolean insertCodePoint(int codePoint) {
+        Optional<String[]> glyph = BigSignWriter.getBigChar(codePoint);
+        // Missing glyphs are silently consumed; only capacity stops the input stream.
+        if (glyph.isEmpty()) return true;
+        if (this.typeLines(glyph.get())) return true;
+        if (BigSignWriterConfig.MAIN_CONFIG.continuousWriting)
+            showMessage(Component.translatable("bigsignwriter.input.signFull", Component.translatable("gui.done")));
+        return false;
+    }
+
+    public void continuePendingText() {
+        if (BigSignWriterConfig.MAIN_CONFIG.continuousWriting && !BigSignWriter.isVanillaTyping())
+            BigSignWriter.PENDING_TEXT.drain(this::insertCodePoint);
+    }
+
+    /** The toolbar uses the same capacity check as insertion, without consuming input or editing rows. */
+    public boolean canContinuePendingText() {
+        if (!BigSignWriterConfig.MAIN_CONFIG.continuousWriting || BigSignWriter.isVanillaTyping()
+                || BigSignWriter.PENDING_TEXT.isEmpty()) return false;
+        OptionalInt next = BigSignWriter.PENDING_TEXT.nextCodePoint(cp -> BigSignWriter.getBigChar(cp).isPresent());
+        // A reload can remove glyphs; still allow draining unsupported queued text.
+        return next.isEmpty() || BigSignWriter.getBigChar(next.getAsInt())
+                .filter(rows -> this.prepareInsertion(rows, BigSignWriter.characterSeparator()).isPresent()).isPresent();
+    }
+
+    public void typeText(String text) {
+        if (BigSignWriterConfig.MAIN_CONFIG.continuousWriting) {
+            if (!BigSignWriter.PENDING_TEXT.append(text)) {
+                showMessage(Component.translatable("bigsignwriter.input.tooLong", PendingSignText.LIMIT));
+                return;
+            }
+            this.continuePendingText();
+        } else {
+            for (int cp : text.codePoints().filter(codePoint -> !Character.isISOControl(codePoint)).toArray())
+                if (!this.insertCodePoint(cp)) break;
+        }
     }
 
     public boolean keyPressed(KeyEvent keyEvent) {
+        if (keyEvent.isPaste()) {
+            this.typeText(Minecraft.getInstance().keyboardHandler.getClipboard());
+            return true;
+        }
         if (keyEvent.isUp()) {
             this.setLine(this.getLine() - 1);
             if (this.getLine() < 0)
@@ -418,6 +486,11 @@ public record BigFontTyper(SignEditContext context) {
         //if (keyEvent.key() != 259)
             return false;
 
+        if (BigSignWriterConfig.MAIN_CONFIG.continuousWriting && !BigSignWriter.PENDING_TEXT.isEmpty()) {
+            if (keyEvent.hasControlDown()) BigSignWriter.PENDING_TEXT.clear();
+            else BigSignWriter.PENDING_TEXT.backspace();
+            return true;
+        }
         this.deleteBigChar(keyEvent);
         return true;
     }

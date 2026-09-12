@@ -1,0 +1,23 @@
+CJK Pixel 12 is a bitmap-format conversion of Fusion Pixel 12px monospaced,
+release 2026.09.01, copyright (c) 2022 TakWolf and the upstream font authors.
+
+Source: https://github.com/TakWolf/fusion-pixel-font/releases/tag/2026.09.01
+Source archive SHA-256:
+5b1cac9253fa9e20b9fea5fd582eeed985819a3ce4b7f7fb108f8d6e599ad211
+
+The generated font data is licensed under the SIL Open Font License 1.1.
+It retains regional BDF glyph pixels without resampling, except for documented
+derivative corrections in tools/cjk-font-generator/corrections/. The default
+zh_hans U+9053 (道) correction expands the inner eye to show two distinct strokes;
+the left-hand radical, 12x12 cell, width and character coverage are unchanged.
+These corrected glyphs are also distributed under OFL-1.1. ASCII, PUA glyphs
+and oversized vertical Kana ligatures are excluded from the bundled provider.
+The derivative family name is CJK Pixel 12, distinct from the upstream Fusion Pixel name.
+
+See OFL.txt and LICENSES/ for the original notices distributed with the source:
+- Ark Pixel Font: LICENSES/ark-pixel/OFL.txt
+- Cubic 11: LICENSES/cubic-11/OFL.txt
+- Galmuri: LICENSES/galmuri/LICENSE.txt
+
+The Java implementation and generator are part of BigSignWriter (MPL-2.0).
+Minecraft font assets are used for verification only and are not redistributed.

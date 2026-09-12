@@ -3,3 +3,9 @@ build/
 .idea/
 .gradle/
 .kotlin/
+
+# Local font tooling and test scratch
+__pycache__/
+*.pyc
+work/
+/logs/

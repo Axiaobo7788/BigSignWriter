@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "bigsignwriter_ui_smoke",
+  "version": "1.0.0",
+  "name": "BigSignWriter UI smoke tests",
+  "environment": "client",
+  "entrypoints": {"fabric-client-gametest": ["CjkUiSmoke"]},
+  "depends": {"bigsignwriter": "*", "fabric-client-gametest-api-v1": "*"}
+}

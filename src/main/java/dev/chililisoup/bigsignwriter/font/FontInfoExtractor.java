@@ -1,6 +1,7 @@
 package dev.chililisoup.bigsignwriter.font;
 
 import dev.chililisoup.bigsignwriter.resources.BigFontManager;
+import dev.chililisoup.bigsignwriter.resources.BitmapFontLoader;
 import dev.chililisoup.bigsignwriter.BigSignWriter;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -8,6 +9,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -15,20 +17,23 @@ import static dev.chililisoup.bigsignwriter.config.BigSignWriterConfig.MAIN_CONF
 
 public final class FontInfoExtractor {
     public static Map<Identifier, FontInfoExtraction> prepareFonts(Map<Identifier, FontFile> fontSources) {
-        return fontSources.entrySet().stream()
+        Map<Identifier, FontInfoExtraction> preparedFonts = fontSources.entrySet().stream()
                 .collect(Collectors.toUnmodifiableMap(
                         Map.Entry::getKey,
                         entry -> new FontInfoExtraction(entry.getValue(), entry.getKey())
                 ));
+        preparedFonts.values().forEach(extraction -> extraction.preparedFonts = preparedFonts);
+        preparedFonts.values().forEach(FontInfoExtraction::checkParentCycle);
+        return preparedFonts;
     }
 
     public static List<FontInfo> extractAll(Map<Identifier, FontInfoExtraction> preparedFonts) {
-        preparedFonts.values().forEach(extraction -> extraction.preparedFonts = preparedFonts);
         preparedFonts.values().forEach(FontInfoExtraction::ensureInfoChecked);
         return preparedFonts.values().stream().map(FontInfoExtraction::get).toList();
     }
 
     private static String createRangeInfo(ArrayList<Integer> samples) {
+        if (samples.isEmpty()) return "0";
         int minSample = Collections.min(samples);
         int maxSample = Collections.max(samples);
         return minSample == maxSample ?
@@ -48,7 +53,9 @@ public final class FontInfoExtractor {
         @Nullable FontInfoExtraction parentFont = null;
         private @Nullable FontInfoExtraction rootAncestorFont = null;
         @Nullable Component error = null;
-        private @Nullable TreeSet<Character> cumulativeCharacters = null;
+        @Nullable BitmapFontLoader.Loaded bitmapFont = null;
+        private boolean cyclicParent = false;
+        private @Nullable TreeSet<Integer> cumulativeCharacters = null;
         String widthInfo = "0";
         @Nullable String cumulativeWidthInfo = null;
         @Nullable Component symbolError = null;
@@ -76,8 +83,27 @@ public final class FontInfoExtractor {
         }
 
         @Override
-        public Map<Character, String[]> characters() {
+        public Map<Integer, String[]> characters() {
             return this.fontFile.getCharacters();
+        }
+
+        @Override
+        public @Nullable BigGlyphProvider glyphProvider() {
+            this.ensureInfoChecked();
+            return this.bitmapFont != null ? this.bitmapFont.provider() : null;
+        }
+
+        private void checkParentCycle() {
+            Set<Identifier> seen = new HashSet<>();
+            FontInfoExtraction next = this;
+            while (next != null) {
+                if (!seen.add(next.id)) {
+                    this.cyclicParent = true;
+                    return;
+                }
+                Identifier parent = next.fontFile.parentFont().orElse(null);
+                next = parent != null ? this.preparedFonts.get(parent) : null;
+            }
         }
 
         private void ensureRelationsChecked() {
@@ -119,7 +145,7 @@ public final class FontInfoExtractor {
                     this.parentFont;
         }
 
-        public Set<Character> cumulativeCharacters() {
+        public Set<Integer> cumulativeCharacters() {
             if (this.cumulativeCharacters != null) return this.cumulativeCharacters;
             if (!this.hasExplicitParent()) return this.characters().keySet();
 
@@ -133,15 +159,15 @@ public final class FontInfoExtractor {
         }
 
         public Map<String, String[]> symbols() {
-            Map<Character, String[]> characters = this.characters();
+            Map<Integer, String[]> characters = this.characters();
             LinkedHashMap<String, String[]> symbols = new LinkedHashMap<>();
 
             if (this.fontFile.symbols != null) symbols.putAll(this.fontFile.symbols);
 
             if (MAIN_CONFIG.nonUSCharactersInSymbols)
                 characters.entrySet().stream()
-                        .filter(entry -> entry.getKey().toString().matches("[^ -~]"))
-                        .forEach(entry -> symbols.put(entry.getKey().toString(), entry.getValue()));
+                        .filter(entry -> entry.getKey() < 32 || entry.getKey() > 126)
+                        .forEach(entry -> symbols.put(UnicodeCodePoints.toKey(entry.getKey()), entry.getValue()));
 
             return symbols.isEmpty() ? Map.of() : symbols;
         }
@@ -159,6 +185,7 @@ public final class FontInfoExtractor {
         }
 
         private @Nullable Component extractInfo() {
+            if (this.cyclicParent) return Component.translatable("bigsignwriter.font.error.cyclicParent");
             if (this.fontFile.height != null && this.fontFile.height <= 0) return Component.translatable(
                     "bigsignwriter.font.error.invalidHeight",
                     fontFile.height
@@ -166,6 +193,16 @@ public final class FontInfoExtractor {
 
             this.parentFont = this.findParent();
             this.rootAncestorFont = this.findRootAncestor();
+            if (this.fontFile.bitmapFont().isPresent()) {
+                try {
+                    this.bitmapFont = BitmapFontLoader.load(this.fontFile.bitmapFont().get(), this.height(),
+                            Minecraft.getInstance().getResourceManager(), Minecraft.getInstance().font);
+                    this.widthInfo = "≤" + this.bitmapFont.maxWidth();
+                } catch (IOException e) {
+                    BigSignWriter.LOGGER.warn(BigSignWriter.LOGGER_PREFIX + "Cannot load bitmap font {}", this.id, e);
+                    return Component.translatable("bigsignwriter.font.error.bitmap", e.getMessage());
+                }
+            }
             if (this.fontFile.getCharacters().isEmpty()) {
                 if (!this.parentIsImplicit() && this.parentFont != null)
                     this.cumulativeWidthInfo = this.parentFont.widthInfo();
@@ -173,11 +210,11 @@ public final class FontInfoExtractor {
             }
 
             Font font = Minecraft.getInstance().font;
-            Set<Character> cumulativeCharacters = this.cumulativeCharacters();
+            Set<Integer> cumulativeCharacters = this.cumulativeCharacters();
             ArrayList<Integer> ownWidths = new ArrayList<>(this.fontFile.getCharacters().size());
             ArrayList<Integer> cumulativeWidths = new ArrayList<>(cumulativeCharacters.size());
 
-            for (char chr : cumulativeCharacters) {
+            for (int chr : cumulativeCharacters) {
                 String[] bigChar = this.fontFile.getCharacters().get(chr);
                 if (bigChar == null && this.parentFont != null)
                     bigChar = BigSignWriter.getBigChar(chr, this.parentFont).orElse(null);
@@ -185,7 +222,7 @@ public final class FontInfoExtractor {
 
                 if (bigChar.length != this.fontFile.getHeight()) return Component.translatable(
                         "bigsignwriter.font.error.wrongLineCount",
-                        String.valueOf(chr),
+                        UnicodeCodePoints.toKey(chr),
                         bigChar.length,
                         this.fontFile.getHeight()
                 );
@@ -202,7 +239,7 @@ public final class FontInfoExtractor {
                     }
                     if (unfixed) return Component.translatable(
                             "bigsignwriter.font.error.unfixedWidth",
-                            String.valueOf(chr),
+                            UnicodeCodePoints.toKey(chr),
                             Arrays.toString(widths)
                     );
 
@@ -212,7 +249,7 @@ public final class FontInfoExtractor {
                 cumulativeWidths.add(topWidth);
             }
 
-            this.widthInfo = createRangeInfo(ownWidths);
+            this.widthInfo = this.bitmapFont == null ? createRangeInfo(ownWidths) : "≤" + this.bitmapFont.maxWidth();
             if (!this.parentIsImplicit()) {
                 String cumulativeWidthInfo = createRangeInfo(cumulativeWidths);
                 if (!this.widthInfo.equals(cumulativeWidthInfo))
@@ -263,6 +300,7 @@ public final class FontInfoExtractor {
         }
 
         private @Nullable FontInfoExtraction findParent() {
+            if (this.cyclicParent) return null;
             if (this.id.equals(BigFontManager.DEFAULT_FONT_ID)) return null;
 
             FontInfoExtraction parentFont = null;
@@ -278,13 +316,16 @@ public final class FontInfoExtractor {
                 }
             }
 
-            if (parentFont == null) return null;
+            if (parentFont == null || parentFont.cyclicParent) return null;
             if (parentFont.height() != this.height()) return null;
 
-            boolean explicit = !this.parentIsImplicit();
-            for (char chr : parentFont.characters().keySet()) {
+            // An explicit parent may inherit its own glyphs through an empty alias.
+            // Inspecting only its local character map would silently sever that chain.
+            if (!this.parentIsImplicit() || parentFont.fontFile.bitmapFont().isPresent()) return parentFont;
+
+            for (int chr : parentFont.characters().keySet()) {
                 if (!this.characters().containsKey(chr)
-                        && (explicit || !this.characters().containsKey(Character.toUpperCase(chr)))
+                        && !this.characters().containsKey(Character.toUpperCase(chr))
                 ) return parentFont;
             }
 

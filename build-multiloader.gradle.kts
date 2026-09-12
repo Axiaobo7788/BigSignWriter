@@ -74,6 +74,11 @@ modstitch.onEnable {
 }
 
 tasks {
+    // The converted metadata is part of main output, including its test classpath.
+    named("classes") {
+        dependsOn("convertClassTweaker")
+    }
+
     named("jar") {
         dependsOn("convertClassTweaker")
     }

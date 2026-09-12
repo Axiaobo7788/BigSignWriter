@@ -9,6 +9,7 @@ import net.minecraft.client.gui.layouts.GridLayout;
 import net.minecraft.client.gui.layouts.Layout;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -142,6 +143,13 @@ public class OptionsTab extends ConfigTab<OptionsTab.OptionsSidePanel> {
         ));
         rowHelper.addChild(new DividerWidget());
         rowHelper.addChild(new OptionElement.BooleanOption(
+                workingConfig.continuousWriting,
+                defaults.continuousWriting,
+                value -> workingConfig.continuousWriting = value,
+                Component.translatable("bigsignwriter.config.continuousWriting"),
+                Component.translatable("bigsignwriter.config.continuousWriting.desc")
+        ));
+        rowHelper.addChild(new OptionElement.BooleanOption(
                 workingConfig.characterSeparatorOverrideEnabled,
                 defaults.characterSeparatorOverrideEnabled,
                 value -> workingConfig.characterSeparatorOverrideEnabled = value,
@@ -174,9 +182,13 @@ public class OptionsTab extends ConfigTab<OptionsTab.OptionsSidePanel> {
     }
 
     protected final class OptionsSidePanel extends ConfigTab.SidePanel {
+        private @Nullable OptionElement<?> displayedOption;
+
         @Override
         protected void arrangeSelf() {
-            this.height = this.maxHeight;
+            int textHeight = this.displayedOption != null ? 25 + OptionsTab.this.screen.font.lineHeight
+                    * OptionsTab.this.screen.font.split(this.displayedOption.description, Math.max(1, this.width)).size() : 0;
+            this.height = Math.max(this.maxHeight, textHeight);
         }
 
         @Override
@@ -203,6 +215,15 @@ public class OptionsTab extends ConfigTab<OptionsTab.OptionsSidePanel> {
 
             OptionElement<?> optionElement = hoveredOption.get();
             if (optionElement == null) optionElement = focusedOption.get();
+            // Keep the explanation visible while the pointer moves into its scrollbar.
+            if (optionElement == null) optionElement = this.displayedOption;
+            if (optionElement != this.displayedOption) {
+                this.displayedOption = optionElement;
+                this.arrangeSelf();
+                OptionsTab.this.sidePanelLayout.arrangeElements();
+                OptionsTab.this.sidePanelLayout.container.setScrollAmount(0);
+                OptionsTab.this.sidePanelLayout.container.refreshScrollAmount();
+            }
             if (optionElement != null) {
                 GraphicsHelper.drawScrollingString(
                         guiGraphics,

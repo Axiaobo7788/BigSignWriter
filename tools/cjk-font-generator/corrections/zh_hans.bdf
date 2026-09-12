@@ -1,0 +1,32 @@
+STARTFONT 2.1
+COMMENT CJK Pixel 12 derivative correction from Fusion Pixel 2026.09.01 zh_hans
+COMMENT U+9053: expand the right-hand eye to seven rows with two inner strokes
+FONT -BigSignWriter-CJK-Pixel-12-Medium-R-Normal--12-120-75-75-C-120-ISO10646-1
+SIZE 12 75 75
+FONTBOUNDINGBOX 12 12 0 -2
+STARTPROPERTIES 3
+FONT_ASCENT 10
+FONT_DESCENT 2
+COPYRIGHT "Derivative of Fusion Pixel Font; distributed under OFL-1.1. See packaged licenses."
+ENDPROPERTIES
+CHARS 1
+STARTCHAR uni9053
+ENCODING 36947
+SWIDTH 1000 0
+DWIDTH 12 0
+BBX 12 12 0 -2
+BITMAP
+0480
+9FE0
+4200
+0FC0
+0840
+CFC0
+4840
+4FC0
+4840
+4FC0
+A000
+9FE0
+ENDCHAR
+ENDFONT

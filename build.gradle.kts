@@ -80,6 +80,10 @@ java {
 
 modstitch.onEnable {
     modstitch.moddevgradle {
+        configureNeoForge {
+            // Run only after Modstitch has enabled the target Minecraft dependencies.
+            addModdingDependenciesTo(sourceSets.test.get())
+        }
         tasks.named("createMinecraftArtifacts") {
             dependsOn("stonecutterGenerate")
         }

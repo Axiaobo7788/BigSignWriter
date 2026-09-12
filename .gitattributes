@@ -1,0 +1,6 @@
+# Keep the Gradle launchers usable on each platform.
+/gradlew text eol=lf
+/gradlew.bat text eol=crlf
+
+# Preserve third-party license bytes on every checkout.
+/src/main/resources/META-INF/licenses/** -text

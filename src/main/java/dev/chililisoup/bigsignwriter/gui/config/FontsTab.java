@@ -2,6 +2,7 @@ package dev.chililisoup.bigsignwriter.gui.config;
 
 import dev.chililisoup.bigsignwriter.BigSignWriter;
 import dev.chililisoup.bigsignwriter.font.FontInfo;
+import dev.chililisoup.bigsignwriter.font.UnicodeCodePoints;
 import dev.chililisoup.bigsignwriter.gui.TickBox;
 import dev.chililisoup.bigsignwriter.util.GraphicsHelper;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -78,6 +79,8 @@ public class FontsTab extends AbstractFontsTab {
                     infoLine("bigsignwriter.font.info.characterCount", fontInfo.characters().size())
             );
             if (fontInfo.isWorking()) {
+                if (fontInfo.bitmapGlyphCount() > 0)
+                    lines.accept(infoLine("bigsignwriter.font.info.bitmapGlyphCount", fontInfo.bitmapGlyphCount()));
                 String cumulativeWidthInfo = fontInfo.cumulativeWidthInfo();
                 lines.accept(cumulativeWidthInfo == null ?
                         infoLine("bigsignwriter.font.info.width", fontInfo.widthInfo()) :
@@ -93,12 +96,13 @@ public class FontsTab extends AbstractFontsTab {
 
         @Override
         protected @NotNull List<Component[]> getWrappedFontPreview(FontInfo fontInfo) {
-            Set<Character> charSet = this.showInheritedCharacters ?
+            Set<Integer> charSet = this.showInheritedCharacters ?
                     fontInfo.cumulativeCharacters() :
                     fontInfo.characters().keySet();
             return GraphicsHelper.getWrappedFontPreview(
                     fontInfo,
-                    String.join("", charSet.stream().map(String::valueOf).toArray(String[]::new)),
+                    String.join("", charSet.stream().map(UnicodeCodePoints::toKey).toArray(String[]::new))
+                            + fontInfo.bitmapSample(),
                     this.width,
                     PREVIEW_LINE_HEIGHT
             );

@@ -1,0 +1,80 @@
+{
+  "version": "2026.09.01",
+  "sha256": "5b1cac9253fa9e20b9fea5fd582eeed985819a3ce4b7f7fb108f8d6e599ad211",
+  "locales": {
+    "zh_hans": {
+      "oversizedExcluded": [
+        "U+3031",
+        "U+3032",
+        "U+E100",
+        "U+E101",
+        "U+E110",
+        "U+E111"
+      ],
+      "correctedGlyphs": [
+        "U+9053"
+      ],
+      "glyphCount": 36193,
+      "pages": 385,
+      "han": 19214,
+      "extensionB": 1146,
+      "hangul": 11172,
+      "missingSamples": "",
+      "gb2312HanMissing": 145
+    },
+    "zh_hant": {
+      "oversizedExcluded": [
+        "U+3031",
+        "U+3032",
+        "U+E100",
+        "U+E101",
+        "U+E110",
+        "U+E111"
+      ],
+      "correctedGlyphs": [],
+      "glyphCount": 36193,
+      "pages": 385,
+      "han": 19214,
+      "extensionB": 1146,
+      "hangul": 11172,
+      "missingSamples": "",
+      "gb2312HanMissing": 145
+    },
+    "ja": {
+      "oversizedExcluded": [
+        "U+3031",
+        "U+3032",
+        "U+E100",
+        "U+E101",
+        "U+E110",
+        "U+E111"
+      ],
+      "correctedGlyphs": [],
+      "glyphCount": 36193,
+      "pages": 385,
+      "han": 19214,
+      "extensionB": 1146,
+      "hangul": 11172,
+      "missingSamples": "",
+      "gb2312HanMissing": 145
+    },
+    "ko": {
+      "oversizedExcluded": [
+        "U+3031",
+        "U+3032",
+        "U+E100",
+        "U+E101",
+        "U+E110",
+        "U+E111"
+      ],
+      "correctedGlyphs": [],
+      "glyphCount": 36193,
+      "pages": 385,
+      "han": 19214,
+      "extensionB": 1146,
+      "hangul": 11172,
+      "missingSamples": "",
+      "gb2312HanMissing": 145
+    }
+  }
+}

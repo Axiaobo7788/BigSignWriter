@@ -1,0 +1,22 @@
+gradle.projectsEvaluated {
+    def p = gradle.rootProject.findProject(':1.21.11-fabric')
+    if (p == null) return
+    def fixture = new File(gradle.rootProject.projectDir, 'tools/cjk-ui-smoke')
+    def classes = p.layout.buildDirectory.dir('cjk-ui-smoke/classes')
+    def compile = p.tasks.register('compileCjkUiSmoke', JavaCompile) {
+        dependsOn p.tasks.named('classes')
+        source new File(fixture, 'src')
+        classpath = p.sourceSets.main.runtimeClasspath
+        destinationDirectory = classes
+        options.release = 21
+        options.encoding = 'UTF-8'
+        javaCompiler = p.javaToolchains.compilerFor { languageVersion = JavaLanguageVersion.of(21) }
+    }
+    p.tasks.named('runTestClient') {
+        dependsOn compile
+        classpath += p.files(classes, new File(fixture, 'resources'))
+        systemProperty 'fabric.client.gametest', 'true'
+        systemProperty 'fabric.client.gametest.modid', 'bigsignwriter_ui_smoke'
+        systemProperty 'fabric.client.gametest.testModResourcesPath', new File(fixture, 'resources').absolutePath
+    }
+}
