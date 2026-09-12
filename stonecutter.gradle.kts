@@ -42,7 +42,13 @@ allprojects {
     repositories {
         mavenCentral()
         mavenLocal()
-        maven("https://maven.neoforged.net/releases")
+        maven("https://maven.neoforged.net/releases") {
+            content {
+                // Loom generates these modules in its local remapped-mod repository.
+                // Do not let an unrelated NeoForge Maven outage block that fallback.
+                excludeGroupByRegex("remapped\\..*")
+            }
+        }
         maven("https://maven.fabricmc.net/")
         maven {
             name = "Terraformers"

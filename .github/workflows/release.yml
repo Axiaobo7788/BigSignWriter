@@ -122,9 +122,22 @@ jobs:
             tasks+=(":${target}:build")
           done
 
-          ./gradlew --no-daemon --stacktrace \
-            "-Pmod.version=$RELEASE_VERSION" \
-            "${tasks[@]}"
+          for attempt in 1 2 3; do
+            if ./gradlew --no-daemon --stacktrace \
+              "-Pmod.version=$RELEASE_VERSION" \
+              "${tasks[@]}"; then
+              exit 0
+            fi
+
+            if [[ "$attempt" -eq 3 ]]; then
+              echo "Gradle build failed after three attempts." >&2
+              exit 1
+            fi
+
+            delay=$((attempt * 15))
+            echo "Gradle build attempt $attempt failed; retrying in ${delay}s."
+            sleep "$delay"
+          done
 
       - name: Collect release files
         shell: bash
