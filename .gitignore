@@ -9,3 +9,8 @@ __pycache__/
 *.pyc
 work/
 /logs/
+
+# Local AI tool state and session data (public engineering notes live in docs/)
+/.codex/
+/.claude/
+/.cursor/

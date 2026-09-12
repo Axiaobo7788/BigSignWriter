@@ -14,8 +14,8 @@ A client-side utility mod that lets you easily add large, multi-line characters 
 <hr>
 
 > [!IMPORTANT]
-> ## Development of Big Sign Writer continues on [Codeberg](https://codeberg.org/chililisoup/BigSignWriter)
-> Code changes will not be mirrored here.
+> ## Upstream development continues on [Codeberg](https://codeberg.org/chililisoup/BigSignWriter)
+> This fork contains an independent, AI-assisted Unicode/CJK extension. It is not part of the upstream release.
 
 <hr>
 
@@ -42,6 +42,6 @@ The complete mod UI follows the Minecraft language setting in English, Simplifie
 
 The bundled source has broad CJK coverage, including traditional Han, Kana, Hangul and some supplementary characters, but does not contain every Unicode character. Existing ASCII fonts remain available. Keep the default Minecraft font; resource packs and Force Unicode Font can change the block geometry.
 
-Read [CJK usage, coverage and validation](docs/cjk-support/README.md) and the [manual acceptance checklist](docs/cjk-support/testing.md). Font generation is reproducible with the [CJK font tools](tools/cjk-font-generator/README.md).
+Read [CJK usage, coverage and validation](docs/cjk-support/README.md), the [manual acceptance checklist](docs/cjk-support/testing.md), and the [AI-assisted development handoff](docs/cjk-support/agent-memory.md). Font generation is reproducible with the [CJK font tools](tools/cjk-font-generator/README.md).
 
 The bundled default CJK Pixel 12 includes a documented OFL derivative correction for 道, restoring two separated inner horizontal strokes. Existing signs must be rewritten to use the corrected shape because signs store the converted vanilla characters.

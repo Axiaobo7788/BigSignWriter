@@ -59,6 +59,8 @@ One output character packs three vertical source pixels using vanilla full-width
 
 See [architecture.md](architecture.md) for the data flow, [decisions.md](decisions.md) for design tradeoffs, and [testing.md](testing.md) for reproducible checks and remaining manual acceptance.
 
+This fork also publishes its AI-assisted engineering records: [agent-memory.md](agent-memory.md) is the current technical handoff, [progress.md](progress.md) records implementation milestones, and [todo.md](todo.md) tracks remaining validation and follow-up work. These files contain public project context only; tool sessions, prompts, credentials, caches and machine-specific paths are excluded.
+
 ## Building and reproducing checks
 
 Run the checked-in Gradle wrapper with Java 25. Minecraft 1.21.x outputs still target Java 21. The wrapper pins Gradle 9.6.1 and its distribution SHA-256; the system Gradle installation is not required.
