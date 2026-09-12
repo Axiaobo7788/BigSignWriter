@@ -14,8 +14,8 @@ A client-side utility mod that lets you easily add large, multi-line characters 
 <hr>
 
 > [!IMPORTANT]
-> ## Upstream development continues on [Codeberg](https://codeberg.org/chililisoup/BigSignWriter)
-> This fork contains an independent, AI-assisted Unicode/CJK extension. It is not part of the upstream release.
+> ## Independent AI-assisted branch
+> The original author does not accept AI-assisted contributions to the upstream project, so this branch is maintained independently for the Unicode/CJK extension. The original project and its author remain available at [chililisoup/BigSignWriter on Codeberg](https://codeberg.org/chililisoup/BigSignWriter).
 
 <hr>
 
@@ -45,3 +45,7 @@ The bundled source has broad CJK coverage, including traditional Han, Kana, Hang
 Read [CJK usage, coverage and validation](docs/cjk-support/README.md), the [manual acceptance checklist](docs/cjk-support/testing.md), and the [AI-assisted development handoff](docs/cjk-support/agent-memory.md). Font generation is reproducible with the [CJK font tools](tools/cjk-font-generator/README.md).
 
 The bundled default CJK Pixel 12 includes a documented OFL derivative correction for 道, restoring two separated inner horizontal strokes. Existing signs must be rewritten to use the corrected shape because signs store the converted vanilla characters.
+
+## GitHub releases
+
+Pushing a tag whose name starts with `v` builds all seven supported Minecraft/loader targets and publishes their JARs, together with `SHA256SUMS`, as a GitHub Release. The same workflow can be started manually from **Actions → Release → Run workflow** with a new tag such as `v3.0.0-cjk.1`.

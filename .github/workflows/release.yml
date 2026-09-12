@@ -1,0 +1,199 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag, for example v3.0.0-cjk.1"
+        required: true
+        type: string
+      prerelease:
+        description: "Publish as a prerelease"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      TARGETS: >-
+        1.21.10-fabric
+        1.21.10-neoforge
+        1.21.11-fabric
+        1.21.11-neoforge
+        26.1
+        26.2
+        26.3
+
+    steps:
+      - name: Check out the release commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate the Gradle wrapper
+        uses: gradle/actions/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
+
+      - name: Install Java 21 toolchain
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install Java 25 toolchain
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Configure Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
+        with:
+          cache-provider: basic
+
+      - name: Resolve release metadata
+        id: release
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_TAG: ${{ inputs.tag }}
+          DISPATCH_PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            tag="$GITHUB_REF_NAME"
+            if [[ "$tag" == *-* ]]; then
+              prerelease=true
+            else
+              prerelease=false
+            fi
+          else
+            tag="$DISPATCH_TAG"
+            prerelease="$DISPATCH_PRERELEASE"
+          fi
+
+          if [[ ! "$tag" =~ ^v[0-9][0-9A-Za-z._-]*$ ]]; then
+            echo "Release tag must start with v and contain only letters, numbers, dots, underscores, or hyphens." >&2
+            exit 1
+          fi
+
+          release_version="${tag#v}"
+          release_commit="$(git rev-parse HEAD)"
+
+          if git show-ref --verify --quiet "refs/tags/$tag"; then
+            tag_commit="$(git rev-list -n 1 "$tag")"
+            if [[ "$tag_commit" != "$release_commit" ]]; then
+              echo "Tag $tag points to $tag_commit, but this run checked out $release_commit." >&2
+              exit 1
+            fi
+          fi
+
+          {
+            echo "tag=$tag"
+            echo "version=$release_version"
+            echo "commit=$release_commit"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build all supported targets
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          tasks=()
+          for target in $TARGETS; do
+            tasks+=(":${target}:build")
+          done
+
+          ./gradlew --no-daemon --stacktrace \
+            "-Pmod.version=$RELEASE_VERSION" \
+            "${tasks[@]}"
+
+      - name: Collect release files
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          mkdir release
+
+          count=0
+          for target in $TARGETS; do
+            filename="bigsignwriter-${RELEASE_VERSION}+${target}.jar"
+            source_file="versions/${target}/build/libs/${filename}"
+
+            if [[ ! -f "$source_file" ]]; then
+              echo "Expected release JAR is missing: $source_file" >&2
+              find "versions/${target}/build/libs" -maxdepth 1 -type f -print >&2 || true
+              exit 1
+            fi
+
+            cp "$source_file" "release/$filename"
+            count=$((count + 1))
+          done
+
+          if [[ "$count" -ne 7 ]] || [[ "$(find release -maxdepth 1 -type f -name '*.jar' | wc -l)" -ne 7 ]]; then
+            echo "Expected exactly seven release JARs." >&2
+            exit 1
+          fi
+
+          (cd release && sha256sum ./*.jar > SHA256SUMS)
+          find release -maxdepth 1 -type f -printf '%f\n' | sort
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: BigSignWriter-${{ steps.release.outputs.tag }}
+          path: release/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
+          PRERELEASE: ${{ steps.release.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" release/* \
+              --clobber \
+              --repo "$GITHUB_REPOSITORY"
+            exit 0
+          fi
+
+          release_args=(
+            "$RELEASE_TAG"
+            release/*
+            --repo "$GITHUB_REPOSITORY"
+            --target "$RELEASE_COMMIT"
+            --title "Big Sign Writer $RELEASE_TAG"
+            --generate-notes
+          )
+
+          if [[ "$PRERELEASE" == "true" ]]; then
+            release_args+=(--prerelease)
+          fi
+
+          gh release create "${release_args[@]}"
